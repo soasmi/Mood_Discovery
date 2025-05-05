@@ -1,0 +1,107 @@
+import React, { useState } from 'react';
+import { Sunrise, Sun, Sunset, Moon } from 'lucide-react';
+import { useSpotify } from '../context/SpotifyContext';
+import TrackCard from './TrackCard';
+import SoundDeepDive from './SoundDeepDive';
+import { TimeOfDay } from '../types';
+
+const timeIcons = {
+  morning: <Sunrise className="w-6 h-6 text-yellow-400" />,
+  afternoon: <Sun className="w-6 h-6 text-yellow-500" />,
+  evening: <Sunset className="w-6 h-6 text-orange-500" />,
+  night: <Moon className="w-6 h-6 text-indigo-400" />,
+};
+
+const timeDescriptions = {
+  morning: 'Start your day with uplifting and energizing tracks',
+  afternoon: 'Keep your momentum going with focused and balanced music',
+  evening: 'Wind down with relaxing and reflective melodies',
+  night: 'Late night vibes to match your mood',
+};
+
+// Time-specific mood and energy profiles
+const timeProfiles = {
+  morning: { minEnergy: 0.5, maxEnergy: 0.8, minMood: 0.6, maxMood: 0.9 },
+  afternoon: { minEnergy: 0.4, maxEnergy: 0.7, minMood: 0.5, maxMood: 0.8 },
+  evening: { minEnergy: 0.2, maxEnergy: 0.5, minMood: 0.4, maxMood: 0.7 },
+  night: { minEnergy: 0.1, maxEnergy: 0.6, minMood: 0.2, maxMood: 0.6 },
+};
+
+const TimeMoodPanel = () => {
+  const { tracks, moodSettings, updateMoodSettings } = useSpotify();
+  const [showDeepDive, setShowDeepDive] = useState(false);
+  const [selectedTrack, setSelectedTrack] = useState(null);
+
+  const handleTimeChange = (time: TimeOfDay) => {
+    updateMoodSettings({ timeOfDay: time });
+    
+    // Also update the energy and mood based on the time profile
+    const profile = timeProfiles[time];
+    const energy = (profile.minEnergy + profile.maxEnergy) / 2;
+    const mood = (profile.minMood + profile.maxMood) / 2;
+    
+    updateMoodSettings({ energy, mood });
+  };
+
+  const getTimeFilteredTracks = () => {
+    const profile = timeProfiles[moodSettings.timeOfDay];
+    
+    return tracks.filter(track => 
+      track.energy >= profile.minEnergy && 
+      track.energy <= profile.maxEnergy &&
+      track.mood >= profile.minMood && 
+      track.mood <= profile.maxMood
+    ).slice(0, 4);
+  };
+
+  const openDeepDive = (track) => {
+    setSelectedTrack(track);
+    setShowDeepDive(true);
+  };
+
+  const closeDeepDive = () => {
+    setShowDeepDive(false);
+  };
+
+  return (
+    <div className="bg-neutral-800/50 rounded-lg p-6 backdrop-blur-sm">
+      <div className="flex flex-wrap gap-3 mb-6">
+        {(['morning', 'afternoon', 'evening', 'night'] as TimeOfDay[]).map((time) => (
+          <button
+            key={time}
+            onClick={() => handleTimeChange(time)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${
+              moodSettings.timeOfDay === time
+                ? 'bg-green-500 text-black'
+                : 'bg-neutral-700 text-white hover:bg-neutral-600'
+            }`}
+          >
+            {timeIcons[time]}
+            <span className="capitalize">{time}</span>
+          </button>
+        ))}
+      </div>
+      
+      <div className="mb-6">
+        <h3 className="text-xl font-bold mb-2 capitalize">{moodSettings.timeOfDay} Vibes</h3>
+        <p className="text-neutral-400">{timeDescriptions[moodSettings.timeOfDay]}</p>
+      </div>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        {getTimeFilteredTracks().map(track => (
+          <TrackCard 
+            key={track.id} 
+            track={track} 
+            onClick={() => openDeepDive(track)}
+          />
+        ))}
+      </div>
+      
+      {showDeepDive && selectedTrack && (
+        <SoundDeepDive track={selectedTrack} onClose={closeDeepDive} />
+      )}
+    </div>
+  );
+};
+
+export default TimeMoodPanel;
